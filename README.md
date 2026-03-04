@@ -2,9 +2,9 @@
 
 A real-time voice AI agent powered by [Agora Conversational AI](https://www.agora.io/en/products/conversational-ai/), [OpenAI](https://platform.openai.com/) LLM, and your choice of TTS provider. Built with Vite + React + TypeScript + Supabase Edge Functions. Click **Start Call**, talk, and see live transcripts in the chat panel.
 
-## Deploy with an AI Coding Platform
+## Deploy with Lovable
 
-Use this prompt to import the repo into your AI coding platform:
+Use this prompt to import the repo into Lovable:
 
 ```
 Build this Agora Voice AI Agent: https://github.com/AgoraIO-Conversational-AI/vibe-coding-lovable — be sure to read AGENT.md in full.
@@ -32,9 +32,6 @@ When prompted for environment variables, provide:
 - The app uses Supabase Edge Functions instead of a traditional backend
 - Lovable auto-links a Supabase project — set the secrets there
 - After adding environment variables, **refresh the page** for them to take effect
-
-**v0 (Vercel):**
-- For the Next.js variant, see [vibe-code-v0](https://github.com/AgoraIO-Conversational-AI/vibe-code-v0)
 
 <!-- PLATFORM_TIPS_END -->
 
