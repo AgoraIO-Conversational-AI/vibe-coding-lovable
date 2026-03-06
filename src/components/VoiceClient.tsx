@@ -202,7 +202,7 @@ export function VoiceClient() {
   // Loading state
   if (envLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className="flex min-h-dvh items-center justify-center bg-background">
         <div className="animate-pulse text-muted-foreground">Loading...</div>
       </div>
     );
@@ -211,7 +211,7 @@ export function VoiceClient() {
   // Missing env vars
   if (envStatus && !envStatus.ready) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+      <div className="flex min-h-dvh items-center justify-center bg-background p-4">
         <Card className="max-w-md w-full border-destructive/30">
           <CardContent className="pt-6">
             <div className="flex items-center gap-3 mb-4">
@@ -238,7 +238,7 @@ export function VoiceClient() {
   // Pre-connection
   if (!isConnected) {
     return (
-      <div className="relative flex min-h-screen flex-col bg-background">
+      <div className="relative flex min-h-dvh flex-col bg-background">
         {/* Header */}
         <header className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2.5">
@@ -351,7 +351,7 @@ export function VoiceClient() {
 
   // Connected state
   return (
-    <div className="flex h-screen flex-col bg-background overflow-hidden">
+    <div className="flex h-dvh flex-col bg-background overflow-hidden">
       {/* Header */}
       <header className="px-4 py-3 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-2.5">
