@@ -38,6 +38,8 @@ export function useAgoraVoiceClient() {
   const [agentState, setAgentState] = useState<
     "not-joined" | "joining" | "listening" | "talking" | "disconnected"
   >("not-joined");
+  const [micDevices, setMicDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedMicId, setSelectedMicId] = useState<string>("");
 
   const volumeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const agoraRTCRef = useRef<typeof AgoraRTC | null>(null);
@@ -84,6 +86,33 @@ export function useAgoraVoiceClient() {
       }
     };
   }, [remoteAudioTrack]);
+
+  // ---- Device enumeration ----
+  const refreshDevices = useCallback(async () => {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const mics = devices.filter((d) => d.kind === "audioinput");
+      setMicDevices(mics);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    refreshDevices();
+    navigator.mediaDevices.addEventListener("devicechange", refreshDevices);
+    return () => {
+      navigator.mediaDevices.removeEventListener("devicechange", refreshDevices);
+    };
+  }, [refreshDevices]);
+
+  const switchMicDevice = useCallback(async (deviceId: string) => {
+    if (!localAudioTrack) return;
+    try {
+      await (localAudioTrack as any).setDevice(deviceId);
+      setSelectedMicId(deviceId);
+    } catch (err) {
+      console.error("Failed to switch mic device:", err);
+    }
+  }, [localAudioTrack]);
 
   const joinChannel = useCallback(
     async (config: VoiceClientConfig) => {
@@ -288,6 +317,9 @@ export function useAgoraVoiceClient() {
     messages,
     localAudioTrack,
     remoteAudioTrack,
+    micDevices,
+    selectedMicId,
+    switchMicDevice,
     joinChannel,
     leaveChannel,
     toggleMute,

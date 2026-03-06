@@ -1,11 +1,18 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Mic, MicOff, Phone, PhoneOff, Settings, SendHorizontal, AlertTriangle } from "lucide-react";
+import { Mic, MicOff, Phone, PhoneOff, Settings, SendHorizontal, AlertTriangle, X } from "lucide-react";
 import { useAgoraVoiceClient } from "@/hooks/useAgoraVoiceClient";
 import { useAudioVisualization } from "@/hooks/useAudioVisualization";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { AgoraLogo } from "./AgoraLogo";
@@ -24,8 +31,10 @@ export function VoiceClient() {
   const [agentId, setAgentId] = useState<string | null>(null);
   const [chatMessage, setChatMessage] = useState("");
   const [showSettings, setShowSettings] = useState(false);
-  const [prompt, setPrompt] = useState("");
-  const [greeting, setGreeting] = useState("");
+  const [prompt, setPrompt] = useState(
+    "You are a friendly voice assistant. Keep responses concise, around 10 to 20 words. Be helpful and conversational."
+  );
+  const [greeting, setGreeting] = useState("Hi there! How can I help you today?");
   const [connectionTime, setConnectionTime] = useState(0);
   const [channelName, setChannelName] = useState("");
   const conversationEndRef = useRef<HTMLDivElement>(null);
@@ -38,6 +47,9 @@ export function VoiceClient() {
     agentState,
     messages,
     localAudioTrack,
+    micDevices,
+    selectedMicId,
+    switchMicDevice,
     joinChannel,
     leaveChannel,
     toggleMute,
@@ -226,7 +238,7 @@ export function VoiceClient() {
   // Pre-connection
   if (!isConnected) {
     return (
-      <div className="flex min-h-screen flex-col bg-background">
+      <div className="relative flex min-h-screen flex-col bg-background">
         {/* Header */}
         <header className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2.5">
@@ -274,36 +286,65 @@ export function VoiceClient() {
               {isLoading ? "Connecting..." : "Start Call"}
             </Button>
 
-            {showSettings && (
-              <Card className="border w-full">
-                <CardContent className="pt-4 space-y-3">
-                  <div>
-                    <label className="text-sm font-medium mb-1.5 block">
-                      System Prompt
-                    </label>
-                    <Textarea
-                      value={prompt}
-                      onChange={(e) => setPrompt(e.target.value)}
-                      placeholder="You are a friendly voice assistant..."
-                      className="resize-none"
-                      rows={3}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium mb-1.5 block">
-                      Greeting Message
-                    </label>
-                    <Input
-                      value={greeting}
-                      onChange={(e) => setGreeting(e.target.value)}
-                      placeholder="Hi there! How can I help you today?"
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            )}
           </div>
         </div>
+
+        {/* Settings modal overlay (pre-connection) */}
+        {showSettings && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
+            <Card className="w-full max-w-md shadow-2xl">
+              <CardContent className="pt-6 space-y-5">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-base font-semibold">Agent Settings</h2>
+                  <button onClick={() => setShowSettings(false)} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+                  Close
+                </button>
+                </div>
+                {micDevices.length > 0 && (
+                  <div>
+                    <label className="text-sm font-medium mb-1.5 block">Microphone</label>
+                    <Select
+                      value={selectedMicId || micDevices[0]?.deviceId}
+                      onValueChange={switchMicDevice}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select microphone" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {micDevices.map((device, i) => (
+                          <SelectItem key={device.deviceId} value={device.deviceId}>
+                            {device.label || `Microphone ${i + 1}`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                <div>
+                  <label className="text-sm font-medium mb-1.5 block">System Prompt</label>
+                  <Textarea
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                    placeholder="You are a friendly voice assistant..."
+                    className="resize-none"
+                    rows={3}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-1.5 block">Greeting Message</label>
+                  <Input
+                    value={greeting}
+                    onChange={(e) => setGreeting(e.target.value)}
+                    placeholder="Hi there! How can I help you today?"
+                  />
+                </div>
+                <Button onClick={() => setShowSettings(false)} className="w-full">
+                  Save
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
     );
   }
@@ -329,14 +370,72 @@ export function VoiceClient() {
         <div className="flex items-center gap-2">
           <ThemeToggle />
           <button
-            onClick={handleDisconnect}
-            className="rounded-lg bg-destructive px-5 py-2.5 text-white hover:bg-destructive/90 transition-colors flex items-center gap-2 text-sm font-medium"
+            onClick={() => setShowSettings(!showSettings)}
+            className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
           >
-            <PhoneOff className="h-4 w-4" />
-            End Call
+            <Settings className="h-4 w-4" />
           </button>
         </div>
       </header>
+
+      {/* Settings modal overlay (connected state) */}
+      {showSettings && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
+          <Card className="w-full max-w-md shadow-2xl">
+            <CardContent className="pt-6 space-y-5">
+              <div className="flex items-center justify-between">
+                <h2 className="text-base font-semibold">Agent Settings</h2>
+                <button onClick={() => setShowSettings(false)} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+                  Close
+                </button>
+              </div>
+              {micDevices.length > 0 && (
+                <div>
+                  <label className="text-sm font-medium mb-1.5 block">Microphone</label>
+                  <Select
+                    value={selectedMicId || micDevices[0]?.deviceId}
+                    onValueChange={switchMicDevice}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select microphone" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {micDevices.map((device, i) => (
+                        <SelectItem key={device.deviceId} value={device.deviceId}>
+                          {device.label || `Microphone ${i + 1}`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              <div>
+                <label className="text-sm font-medium mb-1.5 block">System Prompt</label>
+                <p className="text-xs text-muted-foreground mb-1.5">Changes apply on next call</p>
+                <Textarea
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  placeholder="You are a friendly voice assistant..."
+                  className="resize-none"
+                  rows={3}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1.5 block">Greeting Message</label>
+                <p className="text-xs text-muted-foreground mb-1.5">Changes apply on next call</p>
+                <Input
+                  value={greeting}
+                  onChange={(e) => setGreeting(e.target.value)}
+                  placeholder="Hi there! How can I help you today?"
+                />
+              </div>
+              <Button onClick={() => setShowSettings(false)} className="w-full">
+                Save
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Main content */}
       <div className="flex flex-1 min-h-0 overflow-hidden flex-col md:flex-row">
@@ -386,8 +485,8 @@ export function VoiceClient() {
                 : agentState}
           </div>
 
-          {/* Mic toggle */}
-          <div className="flex justify-center">
+          {/* Mic toggle + End Call */}
+          <div className="flex justify-center gap-3">
             <button
               onClick={toggleMute}
               className={cn(
@@ -402,6 +501,13 @@ export function VoiceClient() {
               ) : (
                 <Mic className="h-4 w-4" />
               )}
+            </button>
+            <button
+              onClick={handleDisconnect}
+              className="h-11 px-5 rounded-lg font-medium text-sm flex items-center justify-center gap-2 bg-destructive text-white hover:bg-destructive/90 transition-colors"
+            >
+              <PhoneOff className="h-4 w-4" />
+              End Call
             </button>
           </div>
 
@@ -499,7 +605,7 @@ export function VoiceClient() {
           </div>
 
           {/* Mobile: bottom controls */}
-          <div className="flex md:hidden justify-center p-3 border-t">
+          <div className="flex md:hidden justify-center gap-3 p-3 border-t">
             <button
               onClick={toggleMute}
               className={cn(
@@ -514,6 +620,13 @@ export function VoiceClient() {
               ) : (
                 <Mic className="h-4 w-4" />
               )}
+            </button>
+            <button
+              onClick={handleDisconnect}
+              className="h-11 px-5 rounded-lg font-medium text-sm flex items-center justify-center gap-2 bg-destructive text-white hover:bg-destructive/90 transition-colors"
+            >
+              <PhoneOff className="h-4 w-4" />
+              End Call
             </button>
           </div>
         </div>
